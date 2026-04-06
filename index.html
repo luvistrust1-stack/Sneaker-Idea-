@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sneaker Genie</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #0a0a0a;
+      color: white;
+      text-align: center;
+    }
+
+    h1 {
+      color: #00ffcc;
+    }
+
+    .card {
+      background: #1a1a1a;
+      margin: 20px auto;
+      padding: 20px;
+      border-radius: 15px;
+      width: 300px;
+      box-shadow: 0 0 20px #00ffcc;
+    }
+
+    input {
+      padding: 10px;
+      width: 80%;
+      border-radius: 10px;
+      border: none;
+    }
+
+    button {
+      padding: 10px;
+      margin-top: 10px;
+      background: #00ffcc;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>🧞 Sneaker Genie</h1>
+<p>Find sneaker value instantly</p>
+
+<div class="card">
+  <input id="shoeName" placeholder="Enter sneaker name..." />
+  <button onclick="getPrice()">Check Value</button>
+
+  <h3 id="result"></h3>
+</div>
+
+<script>
+function getPrice() {
+  let name = document.getElementById("shoeName").value;
+
+  let retail = 200;
+  let lastSale = 320;
+
+  let low = lastSale * 0.7;
+  let high = lastSale * 0.9;
+
+  document.getElementById("result").innerHTML =
+    "Retail: $" + retail + "<br>" +
+    "Last Sale: $" + lastSale + "<br>" +
+    "💰 Suggested Sell Range: $" + Math.floor(low) + " - $" + Math.floor(high);
+}
+</script>
+
+</body>
+</html>
