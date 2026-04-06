@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sneaker Genie</title>
+
+<style>
+body {
+  margin:0;
+  font-family: Arial;
+  background:#0b0b0b;
+  color:white;
+}
+
+/* NAV */
+.nav {
+  display:flex;
+  justify-content:space-between;
+  padding:15px;
+  background:black;
+}
+
+.logo {
+  color:#00ffcc;
+  font-size:22px;
+}
+
+/* SEARCH */
+.search {
+  text-align:center;
+  margin:30px;
+}
+
+input {
+  padding:15px;
+  width:300px;
+  border-radius:30px;
+  border:none;
+}
+
+/* GRID */
+.grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+  gap:20px;
+  padding:20px;
+}
+
+.card {
+  background:#1a1a1a;
+  border-radius:20px;
+  padding:15px;
+  transition:0.3s;
+}
+
+.card:hover {
+  transform:scale(1.05);
+}
+
+/* GENIE AI BOX */
+.genie {
+  margin-top:10px;
+  padding:10px;
+  background:#111;
+  border-left:4px solid #00ffcc;
+  border-radius:10px;
+}
+
+/* TRY ON */
+#camera {
+  display:none;
+  width:300px;
+  margin:20px auto;
+}
+</style>
+</head>
+
+<body>
+
+<div class="nav">
+  <div class="logo">🧞 Sneaker Genie</div>
+  <button onclick="startCamera()">Try On</button>
+</div>
+
+<div class="search">
+  <input id="search" placeholder="Search sneakers (Jordan, Nike...)">
+  <br><br>
+  <button onclick="searchSneakers()">Search</button>
+</div>
+
+<video id="camera" autoplay></video>
+
+<div class="grid" id="results"></div>
+
+<script>
+
+// 🔑 INSERT YOUR EBAY KEY
+const EBAY_APP_ID = "PASTE_YOUR_KEY_HERE";
+
+// 🔍 SEARCH FUNCTION
+async function searchSneakers() {
+
+  let query = document.getElementById("search").value;
+
+  let url = `https://svcs.ebay.com/services/search/FindingService/v1?
+  OPERATION-NAME=findCompletedItems
+  &SERVICE-VERSION=1.0.0
+  &SECURITY-APPNAME=${EBAY_APP_ID}
+  &RESPONSE-DATA-FORMAT=JSON
+  &keywords=${query}
+  &itemFilter(0).name=SoldItemsOnly
+  &itemFilter(0).value=true`;
+
+  let res = await fetch(url);
+  let data = await res.json();
+
+  let items = data.findCompletedItemsResponse[0].searchResult[0].item;
+
+  display(items);
+}
+
+// 🧠 AI PRICE ENGINE
+function genieAI(price) {
+
+  let low = Math.floor(price * 0.7);
+  let high = Math.floor(price * 0.9);
+
+  let trend = "STABLE";
+  let advice = "HOLD";
+
+  if(price > 300){
+    trend = "HOT 🔥";
+    advice = "SELL NOW";
+  }
+  else if(price < 150){
+    trend = "LOW 📉";
+    advice = "WAIT";
+  }
+
+  return {low, high, trend, advice};
+}
+
+// 🎨 DISPLAY
+function display(items){
+
+  let container = document.getElementById("results");
+  container.innerHTML = "";
+
+  items.slice(0,10).forEach(item => {
+
+    let price = parseFloat(item.sellingStatus[0].currentPrice[0].__value__);
+
+    let ai = genieAI(price);
+
+    container.innerHTML += `
+      <div class="card">
+        <img src="${item.galleryURL[0]}" width="100%">
+        <h3>${item.title[0]}</h3>
+        <p>Last Sale: $${price}</p>
+
+        <div class="genie">
+          🔥 Trend: ${ai.trend}<br>
+          💰 Range: $${ai.low} - $${ai.high}<br>
+          🧞 Advice: ${ai.advice}
+        </div>
+      </div>
+    `;
+  });
+}
+
+// 📸 VIRTUAL TRY-ON (CAMERA STARTER)
+function startCamera(){
+  let video = document.getElementById("camera");
+  video.style.display = "block";
+
+  navigator.mediaDevices.getUserMedia({video:true})
+    .then(stream => {
+      video.srcObject = stream;
+    });
+}
+
+</script>
+
+</body>
+</html>
