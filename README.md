@@ -1,2 +1,2 @@
-# Sneaker-Idea-
+# SneakerManiaWorldWide
 Sneaker Idea 
