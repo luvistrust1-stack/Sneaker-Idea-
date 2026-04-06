@@ -4,31 +4,54 @@
 <meta charset="UTF-8">
 <title>Sneaker Genie</title>
 
+<!-- LIBRARIES -->
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+
 <style>
+
+/* GLOBAL */
 body {
   margin:0;
   font-family: Arial;
-  background:#0b0b0b;
+  background: radial-gradient(circle at center, #0b0b0b, #000);
   color:white;
+  overflow-x:hidden;
+}
+
+/* 3D LOGO */
+.logo {
+  font-size:28px;
+  font-weight:bold;
+  color:#00ffcc;
+  text-shadow:
+    0 0 5px #00ffcc,
+    0 0 20px #00ffcc,
+    0 0 40px #00ffcc;
+  transform: perspective(500px) rotateX(10deg);
+  animation: floatLogo 3s infinite ease-in-out;
+}
+
+@keyframes floatLogo {
+  0% { transform: translateY(0px) rotateX(10deg); }
+  50% { transform: translateY(-5px) rotateX(12deg); }
+  100% { transform: translateY(0px) rotateX(10deg); }
 }
 
 /* NAV */
 .nav {
   display:flex;
   justify-content:space-between;
-  padding:15px;
+  padding:15px 25px;
   background:black;
-}
-
-.logo {
-  color:#00ffcc;
-  font-size:22px;
+  box-shadow:0 0 20px #00ffcc33;
 }
 
 /* SEARCH */
 .search {
   text-align:center;
-  margin:30px;
+  margin:40px;
 }
 
 input {
@@ -36,46 +59,79 @@ input {
   width:300px;
   border-radius:30px;
   border:none;
+  background:#111;
+  color:white;
+}
+
+/* BUTTON */
+button {
+  padding:12px 20px;
+  border:none;
+  border-radius:25px;
+  background:#00ffcc;
+  cursor:pointer;
+  font-weight:bold;
+  box-shadow:0 0 10px #00ffcc;
 }
 
 /* GRID */
 .grid {
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
-  gap:20px;
-  padding:20px;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:25px;
+  padding:25px;
 }
 
+/* CARD (3D EFFECT) */
 .card {
-  background:#1a1a1a;
+  background:#111;
   border-radius:20px;
   padding:15px;
-  transition:0.3s;
+  transition:0.4s;
+  transform-style:preserve-3d;
+  box-shadow:0 0 20px #00ffcc22;
 }
 
 .card:hover {
-  transform:scale(1.05);
+  transform: rotateY(5deg) scale(1.05);
 }
 
-/* GENIE AI BOX */
+/* GENIE BOX */
 .genie {
   margin-top:10px;
   padding:10px;
-  background:#111;
+  background:#000;
   border-left:4px solid #00ffcc;
-  border-radius:10px;
 }
 
-/* TRY ON */
+/* CAMERA */
 #camera {
   display:none;
   width:300px;
   margin:20px auto;
 }
+
+/* PARALLAX BACKGROUND */
+.parallax {
+  position:fixed;
+  width:100%;
+  height:100%;
+  background: radial-gradient(circle,#00ffcc22,#000);
+  z-index:-1;
+  animation: moveBg 10s infinite alternate;
+}
+
+@keyframes moveBg {
+  from { transform: translateY(-20px); }
+  to { transform: translateY(20px); }
+}
+
 </style>
 </head>
 
 <body>
+
+<div class="parallax"></div>
 
 <div class="nav">
   <div class="logo">🧞 Sneaker Genie</div>
@@ -83,64 +139,73 @@ input {
 </div>
 
 <div class="search">
-  <input id="search" placeholder="Search sneakers (Jordan, Nike...)">
+  <input id="search" placeholder="Search sneakers...">
   <br><br>
   <button onclick="searchSneakers()">Search</button>
 </div>
 
 <video id="camera" autoplay></video>
 
+<div style="text-align:center;">
+  <button onclick="startScanner()">📸 Scan Sneaker</button>
+  <div id="reader" style="width:300px; margin:auto;"></div>
+  <h3 id="scanResult"></h3>
+</div>
+
 <div class="grid" id="results"></div>
 
 <script>
 
-// 🔑 INSERT YOUR EBAY KEY
-const EBAY_APP_ID = "PASTE_YOUR_KEY_HERE";
+// 🔑 EBAY KEY
+const EBAY_APP_ID = "PASTE_YOUR_KEY";
 
-// 🔍 SEARCH FUNCTION
-async function searchSneakers() {
+// DB
+let sneakerDB = [];
+fetch("sneakers.json")
+.then(res => res.json())
+.then(data => sneakerDB = data);
+
+// SEARCH
+async function searchSneakers(){
 
   let query = document.getElementById("search").value;
 
-  let url = `https://svcs.ebay.com/services/search/FindingService/v1?
-  OPERATION-NAME=findCompletedItems
-  &SERVICE-VERSION=1.0.0
-  &SECURITY-APPNAME=${EBAY_APP_ID}
-  &RESPONSE-DATA-FORMAT=JSON
-  &keywords=${query}
-  &itemFilter(0).name=SoldItemsOnly
-  &itemFilter(0).value=true`;
+  let url = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.0.0&SECURITY-APPNAME=${EBAY_APP_ID}&RESPONSE-DATA-FORMAT=JSON&keywords=${encodeURIComponent(query)}&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value=true`;
 
   let res = await fetch(url);
   let data = await res.json();
 
-  let items = data.findCompletedItemsResponse[0].searchResult[0].item;
+  let items = data.findCompletedItemsResponse?.[0]?.searchResult?.[0]?.item || [];
 
   display(items);
 }
 
-// 🧠 AI PRICE ENGINE
-function genieAI(price) {
-
-  let low = Math.floor(price * 0.7);
-  let high = Math.floor(price * 0.9);
-
-  let trend = "STABLE";
-  let advice = "HOLD";
-
-  if(price > 300){
-    trend = "HOT 🔥";
-    advice = "SELL NOW";
-  }
-  else if(price < 150){
-    trend = "LOW 📉";
-    advice = "WAIT";
-  }
-
-  return {low, high, trend, advice};
+// AI
+function genieAI(price){
+  return {
+    low: Math.floor(price*0.7),
+    high: Math.floor(price*0.9),
+    trend: price>300?"HOT 🔥":price<150?"LOW 📉":"STABLE",
+    advice: price>300?"SELL":price<150?"WAIT":"HOLD"
+  };
 }
 
-// 🎨 DISPLAY
+// CHART
+function renderChart(canvas, history){
+  new Chart(canvas,{
+    type:"line",
+    data:{
+      labels:["D1","D2","D3","D4","D5","D6","Now"],
+      datasets:[{data:history,tension:0.4}]
+    },
+    options:{
+      plugins:{legend:{display:false}},
+      scales:{x:{display:false},y:{display:false}}
+    }
+  });
+}
+
+// DISPLAY
 function display(items){
 
   let container = document.getElementById("results");
@@ -148,35 +213,64 @@ function display(items){
 
   items.slice(0,10).forEach(item => {
 
-    let price = parseFloat(item.sellingStatus[0].currentPrice[0].__value__);
-
+    let price = parseFloat(item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || 0);
     let ai = genieAI(price);
+
+    let match = sneakerDB.find(s =>
+      item.title[0].toLowerCase().includes(s.name.toLowerCase())
+    );
+
+    let history = match?.price_history || [price,price,price,price,price,price,price];
+    let chartId = "chart" + Math.random();
 
     container.innerHTML += `
       <div class="card">
-        <img src="${item.galleryURL[0]}" width="100%">
-        <h3>${item.title[0]}</h3>
-        <p>Last Sale: $${price}</p>
+        <img src="${item.galleryURL?.[0]}" width="100%">
+        <h3>${item.title?.[0]}</h3>
+        <p>$${price}</p>
+
+        <canvas id="${chartId}"></canvas>
 
         <div class="genie">
-          🔥 Trend: ${ai.trend}<br>
-          💰 Range: $${ai.low} - $${ai.high}<br>
-          🧞 Advice: ${ai.advice}
+          🔥 ${ai.trend}<br>
+          💰 $${ai.low} - $${ai.high}<br>
+          🧞 ${ai.advice}
         </div>
       </div>
     `;
+
+    setTimeout(()=>{
+      renderChart(document.getElementById(chartId), history);
+    },100);
+
   });
 }
 
-// 📸 VIRTUAL TRY-ON (CAMERA STARTER)
+// CAMERA
 function startCamera(){
-  let video = document.getElementById("camera");
-  video.style.display = "block";
-
+  let v=document.getElementById("camera");
+  v.style.display="block";
   navigator.mediaDevices.getUserMedia({video:true})
-    .then(stream => {
-      video.srcObject = stream;
-    });
+  .then(s=>v.srcObject=s);
+}
+
+// SCANNER
+function startScanner(){
+
+  const scanner = new Html5Qrcode("reader");
+
+  scanner.start({facingMode:"environment"}, {fps:10,qrbox:250},
+
+    (text)=>{
+      let clean=text.replace(/[^a-zA-Z0-9- ]/g,"");
+      document.getElementById("scanResult").innerHTML="🔍 "+clean;
+
+      document.getElementById("search").value=clean;
+      searchSneakers();
+
+      scanner.stop();
+    }
+  );
 }
 
 </script>
